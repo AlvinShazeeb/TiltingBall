@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tilt Physics Ball Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .container {
+            width: 300px;
+            height: 300px;
+            border: 2px solid black;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            background-color: #e6f7ff;
+        }
+        .ball {
+            width: 30px;
+            height: 30px;
+            background-color: red;
+            border-radius: 50%;
+            position: absolute;
+            top: 135px;
+            left: 135px;
+        }
+        .sparkle {
+            width: 15px;
+            height: 15px;
+            background-color: gold;
+            border-radius: 50%;
+            position: absolute;
+            animation: twinkle 1.5s infinite;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        .info {
+            margin-top: 20px;
+        }
+        .hearts {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+        }
+        .heart {
+            width: 25px;
+            height: 25px;
+        }
+        .heart svg {
+            width: 100%;
+            height: 100%;
+            fill: red;
+        }
+        .empty-heart svg {
+            fill: #ccc; /* Gray for empty hearts */
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="container" id="container">
+            <div class="ball" id="ball"></div>
+        </div>
+        <div class="info">
+            <p>Score: <span id="score">0</span></p>
+            <p>Time Left: <span id="timer">60</span> seconds</p>
+            <div class="hearts" id="hearts"></div>
+        </div>
+    </div>
+    <script>
+        const ball = document.getElementById('ball');
+        const container = document.getElementById('container');
+        const scoreDisplay = document.getElementById('score');
+        const timerDisplay = document.getElementById('timer');
+        const heartsContainer = document.getElementById('hearts');
+        const ballSize = 30;
+        const containerSize = 300;
+        const friction = 0.98;
+        const bounceFactor = 0.8;
+        const invincibilityDuration = 3000; // 3 seconds
+        let velocity = { x: 0, y: 0 };
+        let position = { x: 135, y: 135 };
+        let score = 0;
+        let lives = 5;
+        let invincible = false;
+        let timer = 60;
+
+        // Initialize heart icons
+        function updateHearts() {
+            heartsContainer.innerHTML = '';
+            for (let i = 0; i < 5; i++) {
+                const heart = document.createElement('div');
+                heart.className = 'heart';
+                if (i >= lives) {
+                    heart.classList.add('empty-heart');
+                }
+                heart.innerHTML = `
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                `;
+                heartsContainer.appendChild(heart);
+            }
+        }
+
+        // Function to reset game
+        function resetGame() {
+            alert('Game over! Resetting...');
+            score = 0;
+            lives = 5;
+            position = { x: 135, y: 135 };
+            velocity = { x: 0, y: 0 };
+            timer = 60;
+            scoreDisplay.textContent = score;
+            timerDisplay.textContent = timer;
+            updateHearts();
+        }
+
+        // Function to handle life loss
+        function loseLife() {
+            if (!invincible) {
+                lives -= 1;
+                updateHearts();
+
+                // Trigger invincibility period
+                invincible = true;
+                setTimeout(() => {
+                    invincible = false;
+                }, invincibilityDuration);
+
+                if (lives === 0) {
+                    resetGame();
+                }
+            }
+        }
+
+        // Function to generate sparkles
+        function createSparkle() {
+            const sparkle = document.createElement('div');
+            sparkle.className = 'sparkle';
+            sparkle.style.left = ${Math.random() * (containerSize - 15)}px;
+            sparkle.style.top = ${Math.random() * (containerSize - 15)}px;
+            container.appendChild(sparkle);
+
+            // Remove sparkle after a few seconds if it still exists
+            setTimeout(() => {
+                if (container.contains(sparkle)) {
+                    container.removeChild(sparkle);
+                }
+            }, 5000);
+        }
+
+        // Check if ball collides with a sparkle
+        function checkSparkleCollision() {
+            const sparkles = document.querySelectorAll('.sparkle');
+            sparkles.forEach((sparkle) => {
+                const sparkleRect = sparkle.getBoundingClientRect();
+                const ballRect = ball.getBoundingClientRect();
+
+                if (
+                    ballRect.left < sparkleRect.right &&
+                    ballRect.right > sparkleRect.left &&
+                    ballRect.top < sparkleRect.bottom &&
+                    ballRect.bottom > sparkleRect.top
+                ) {
+                    // Increment score and remove sparkle
+                    score += 10;
+                    scoreDisplay.textContent = score;
+
+                    // Random background color change
+                    container.style.backgroundColor = #${Math.floor(Math.random() * 16777215).toString(16)};
+
+                    container.removeChild(sparkle);
+                }
+            });
+        }
+
+        // Countdown timer
+        function startTimer() {
+            const interval = setInterval(() => {
+                timer -= 1;
+                timerDisplay.textContent = timer;
+
+                if (timer <= 0) {
+                    clearInterval(interval);
+                    alert(Time's up! Your score is ${score}.);
+                    resetGame();
+                }
+            }, 1000);
+        }
+
+        // Boundary check and position update
+        function updateBallPosition() {
+            position.x += velocity.x;
+            position.y += velocity.y;
+
+            // Handle boundaries
+            if (position.x < 0 || position.x > containerSize - ballSize || position.y < 0 || position.y > containerSize - ballSize) {
+                loseLife();
+                position.x = Math.min(Math.max(0, position.x), containerSize - ballSize);
+                position.y = Math.min(Math.max(0, position.y), containerSize - ballSize);
+                velocity.x = -velocity.x * bounceFactor;
+                velocity.y = -velocity.y * bounceFactor;
+            }
+
+            // Apply friction
+            velocity.x *= friction;
+            velocity.y *= friction;
+
+            // Update ball position
+            ball.style.left = ${position.x}px;
+            ball.style.top = ${position.y}px;
+
+            // Check for sparkle collision
+            checkSparkleCollision();
+
+            // Request next animation frame
+            requestAnimationFrame(updateBallPosition);
+        }
+
+        // Listen for device orientation events
+        window.addEventListener('deviceorientation', (event) => {
+            const tiltX = event.gamma;
+            const tiltY = event.beta;
+
+            if (tiltX !== null && tiltY !== null) {
+                const gravityX = (tiltX / 90) * 0.5;
+                const gravityY = (tiltY / 90) * 0.5;
+
+                velocity.x += gravityX;
+                velocity.y += gravityY;
+            }
+        });
+
+        // Fallback for unsupported devices
+        if (!window.DeviceOrientationEvent) {
+            document.querySelector('.info').innerHTML = '<p>Your device does not support tilt controls.</p>';
+        }
+
+        // Initialize game
+        updateHearts();
+        startTimer();
+        setInterval(createSparkle, 3000);
+        updateBallPosition();
+    </script>
+</body>
+</html>
